@@ -161,12 +161,29 @@ class Reporting extends CI_Controller
 		 */
 		$field_list = array();
 		$field_list_header = array();
-		foreach ($ref_table_config['fields'] as $k => $v) {
-			if ($v['on_list'] == 'show') {
-				array_push($field_list, $k);
-				array_push($field_list_header, $v['field_title']);
-			}
-		}
+		$field_list = array();
+        $field_list_header = array();
+        foreach ($ref_table_config['fields'] as $k => $v) {
+            if ($v['on_list'] == 'show') {
+                array_push($field_list, $k);
+                array_push($field_list_header, $v['field_title']);
+
+                // FIX #21 : add sub-categories as separate columns
+                if (!empty($v['category_type']) &&
+                    in_array($v['category_type'], ['WithSubCategories', 'WithMultiValues'])) {
+                    $sub_table_config = get_table_configuration($k);
+                    if (!empty($sub_table_config['fields'])) {
+                        foreach ($sub_table_config['fields'] as $sub_key => $sub_field) {
+                            if (!empty($sub_field['category_type']) &&
+                                $sub_field['category_type'] === 'DependentDynamicCategory') {
+                                array_push($field_list, $k . '.' . $sub_key);
+                                array_push($field_list_header, $v['field_title'] . '.' . $sub_field['field_title']);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 		//prepare paper info 
 		$this->db2 = $this->load->database(project_db(), TRUE);
 
@@ -205,6 +222,29 @@ class Reporting extends CI_Controller
 			$element_array['search_strategy'] = !empty($arrangedPapers[$value['class_paper_id']]) ? $arrangedPapers[$value['class_paper_id']]['search_strategy'] : '';
 			$element_array['reviewers'] = !empty($arrangedPapers[$value['class_paper_id']]) ? $arrangedPapers[$value['class_paper_id']]['reviewers'] : '';
 			foreach ($field_list as $key_field => $v_field) {
+				// FIX #21 : composite key "supercat.subcat" - resolve sub-category values via DBConnection_mdl
+				if (strpos($v_field, '.') !== false) {
+    				list($parent_field, $sub_field_name) = explode('.', $v_field, 2);
+    
+    				// Get the intermediate (depends_on) table name from the field configuration
+    				$sub_table_config = get_table_configuration($parent_field);
+    				$sub_field_config = $sub_table_config['fields'][$sub_field_name] ?? null;
+    				$intermediate = $sub_field_config['input_select_values'] ?? null;
+    
+    				if (!empty($intermediate)) {
+        				$sub_values = $this->DBConnection_mdl->get_subcategory_resolved_values(
+            			$parent_field,
+            			$sub_field_name,
+            			$intermediate,
+            			$data['list'][$key][$table_id]
+        				);
+        				$element_array[$v_field] = implode(' | ', $sub_values);
+    				} else {
+        				$element_array[$v_field] = "";
+    				}
+    					continue;
+				}
+
 				if (isset($value[$v_field])) {
 					if (isset($dropoboxes[$v_field][$value[$v_field]])) {
 						$element_array[$v_field] = $dropoboxes[$v_field][$value[$v_field]];

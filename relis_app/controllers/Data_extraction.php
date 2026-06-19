@@ -1313,7 +1313,8 @@ class Data_extraction extends CI_Controller
 						$dropoboxes[$k] = $this->manager_lib->get_reference_select_values($v['input_select_values']);
 					}
 				}
-				;
+			
+			
 			}
 			$T_item_data_assignation = array();
 			$T_remove_assignation_button = array();

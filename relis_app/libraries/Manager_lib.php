@@ -57,10 +57,7 @@ class Manager_lib
     
     	return array();
 	}
-    
-    
-
-
+	
 	/*
 		responsible for retrieving reference select values based on a provided configuration. 
 		It supports fetching values from multiple levels of reference tables and applies optional filters.
